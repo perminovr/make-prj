@@ -1,0 +1,6 @@
+PREREQ_mainc := 
+PREREQ_H_mainc := 
+
+CFLAGS_mainc := -Wall
+LDLIBS_mainc := 
+LDFLAGS_mainc := 

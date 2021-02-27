@@ -1,0 +1,6 @@
+PREREQ_maincpp := 
+PREREQ_H_maincpp := 
+
+CFLAGS_maincpp := -Wall
+LDFLAGS_maincpp := 
+LDLIBS_maincpp := 

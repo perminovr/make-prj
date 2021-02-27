@@ -1,0 +1,133 @@
+#!/bin/bash
+
+PRJTEMPLATE="template-prj"
+
+MAINTEMPLATE_C="mainc"
+MAINTEMPLATE_CPP="maincpp"
+
+# -------------------------------------------------------------
+
+MAINTEMPLATE_ALL="\
+$MAINTEMPLATE_C \
+$MAINTEMPLATE_CPP \
+"
+
+PRJTEMPLATE_fp="`pwd`/$PRJTEMPLATE"
+PRJTEMPLATE_tar="`pwd`/$PRJTEMPLATE.tar.xz"
+
+if [ ! -d "$PRJTEMPLATE_fp" -a -f $PRJTEMPLATE_tar ]; then
+	mkdir $PRJTEMPLATE
+	tar -xpJf $PRJTEMPLATE_tar -C $PRJTEMPLATE
+	UNTAR=1
+fi
+
+if [ ! -d "$PRJTEMPLATE_fp" ]; then
+	echo "Template project ($PRJTEMPLATE_fp) not found!"
+	exit 1
+fi
+
+if [ $# -lt 4 ]; then 
+	echo "\
+		-n | --name NAME
+			the name of the new project
+		-t | --type TYPE
+			type of the project:
+			- c		(c/cpp-project)
+			- cpp	(c++-project)
+	"
+	exit 1
+fi
+
+PRJNAME=
+PRJTYPE=
+while true; do
+	case "$1" in
+	-n|--name)
+		PRJNAME="$2"; shift 2
+	;;
+	-t|--type)
+		PRJTYPE="$2"; shift 2
+	;;
+	*)
+		break
+	;;
+	esac
+done
+
+PRJNAME_fp="`pwd`/$PRJNAME"
+if [ -e "$PRJNAME_fp" ]; then
+	echo "Project \"$PRJNAME_fp\" already exists!"
+	exit 1	
+fi
+
+if 	[ "$PRJTYPE" != "c" ] && 
+	[ "$PRJTYPE" != "cpp" ]; 
+then
+	echo "Project type \"$PRJTYPE\" is not supported!"
+	exit 1		
+fi
+
+
+
+echo
+echo "Build \"${PRJNAME}\" with type \"${PRJTYPE}\" from \"${PRJTEMPLATE}\""
+
+cd ${PRJTEMPLATE_fp}
+make cleanall  > /dev/null
+cd ..
+cp -rf "$PRJTEMPLATE_fp" "${PRJNAME_fp}"
+if [ "$UNTAR" == "1" ]; then
+	rm -rf "$PRJTEMPLATE_fp"
+fi
+
+cd ${PRJNAME_fp}
+mv "${PRJTEMPLATE}-vs-code.code-workspace" "${PRJNAME}-vs-code.code-workspace"
+sed -i "s/\/usr\/bin\/main/\/usr\/bin\/${PRJNAME}/" ${PRJNAME_fp}/.vscode/launch.json
+./mk-c-cpp-prop.sh "clear" > /dev/null
+
+PRJH=`echo ${PRJNAME} | tr '[:punct:]' '_'`
+case ${PRJTYPE} in
+c)
+	TODELETE=`echo "${MAINTEMPLATE_ALL}" | sed -n "s/${MAINTEMPLATE_C}//p"`
+
+	sed -i -e "s/CBIN\s*:=.*/CBIN := ${PRJNAME}/" Targets.mk
+	mv ${MAINTEMPLATE_C} ${PRJNAME}
+	cd ${PRJNAME}
+	mv prereq${MAINTEMPLATE_C} prereq${PRJNAME}
+	mv include/${MAINTEMPLATE_C}.h include/${PRJNAME}.h
+	mv src/${MAINTEMPLATE_C}.c src/${PRJNAME}.c
+	sed -i -e "s/${MAINTEMPLATE_C}_H_/${PRJH}_H_/" -e "s/\(${PRJH}_H_\)/\U\1/" include/${PRJNAME}.h
+	sed -i -e "s/${MAINTEMPLATE_C}.h/${PRJNAME}.h/" src/${PRJNAME}.c
+	;;
+cpp)
+	TODELETE=`echo "${MAINTEMPLATE_ALL}" | sed -n "s/${MAINTEMPLATE_CPP}//p"`
+
+	sed -i -e "s/CPPBIN\s*:=.*/CPPBIN := ${PRJNAME}/" Targets.mk
+	mv ${MAINTEMPLATE_CPP} ${PRJNAME}
+	cd ${PRJNAME}
+	mv prereq${MAINTEMPLATE_CPP} prereq${PRJNAME}
+	mv include/${MAINTEMPLATE_CPP}.hpp include/${PRJNAME}.hpp
+	mv src/${MAINTEMPLATE_CPP}.cpp src/${PRJNAME}.cpp
+	sed -i -e "s/${MAINTEMPLATE_CPP}_H_/${PRJH}_H_/" -e "s/\(${PRJH}_H_\)/\U\1/" include/${PRJNAME}.hpp
+	sed -i -e "s/${MAINTEMPLATE_CPP}.hpp/${PRJNAME}.hpp/" src/${PRJNAME}.cpp
+	;;
+esac
+
+rm -rf ${TODELETE}
+
+echo
+echo "======================================================================="
+echo "Project ${PRJNAME} (${PRJTYPE}-based) was built successfully!"
+echo "Add your bin/so objects into Targets.mk"
+echo "Use mk-c-cpp-prop.sh tool to build source/include intellisense paths"
+echo "Use 'make prebuild' to generate makefiles for bin/so;"
+echo "	it will search include and source files of bin/so automatically"
+echo "	and change name in available prereqs automatically too!"
+echo "Setup environment script for your arch, and add target into makefile"
+echo "Use 'make ARCH' to build your project"
+echo "======================================================================="
+echo
+
+exit 0
+
+
