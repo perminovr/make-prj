@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 1 - sources dir name 
+# 1 - sources dir name
 # 2 - sources type (c / cpp)
 # 3 - path for results
 
@@ -17,7 +17,7 @@ c)
 	src_ext="c"
 	;;
 cpp)
-	src_ext="cpp"
+	src_ext="c cpp"
 	;;
 *)
 	;;

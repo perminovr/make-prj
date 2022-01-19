@@ -1,7 +1,7 @@
 $(PRE_CBIN_MkFiles):
 	@mkdir -p $(BUILD_DIR)/$(notdir $(@D))
-	@$(BUILD_DIR)/generateSrcInc.sh $(notdir $(@D)) c $(BUILD_DIR)/$(notdir $(@D))
-	@$(BUILD_DIR)/renamePREREQ.sh $(notdir $(@D))
+	@bash $(BUILD_DIR)/generateSrcInc.sh $(notdir $(@D)) c $(BUILD_DIR)/$(notdir $(@D))
+	@bash $(BUILD_DIR)/renamePREREQ.sh $(notdir $(@D))
 	@echo "# "$(TM) >$@
 	@echo "" >>$@
 	@echo "TARGET_$(notdir $(@D)) := $(notdir $(@D))" >>$@
@@ -11,7 +11,7 @@ $(PRE_CBIN_MkFiles):
 	@echo "#ifdef \$$(REVISION)" >>$@
 	@echo "#REVISION_$(notdir $(@D)) := \$$(REVISION)" >>$@
 	@echo "#else" >>$@
-	@echo "#REVISION_$(notdir $(@D)) := \$$(shell $(BUILD_DIR)/getrevision.sh \$$(TARGET_DIR_$(notdir $(@D))))" >>$@
+	@echo "#REVISION_$(notdir $(@D)) := \$$(bash $(BUILD_DIR)/getrevision.sh \$$(TARGET_DIR_$(notdir $(@D))))" >>$@
 	@echo "#endif" >>$@
 	@echo "#\$$(info $(notdir $(@D)) revision : \$$(REVISION_$(notdir $(@D))))" >>$@
 	@echo "" >>$@
@@ -28,7 +28,7 @@ $(PRE_CBIN_MkFiles):
 	@echo "endif" >>$@
 	@echo "" >>$@
 	@echo "ifdef PREREQ_H_$(notdir $(@D))" >>$@
-	@echo "PRECOMPILEREQ_$(notdir $(@D)) := \$$(addsuffix .h,\$$(addprefix \$$(BUILD_INC)/,\$$(PREREQ_H_$(notdir $(@D)))))" >>$@
+	@echo "PRECOMPILEREQ_$(notdir $(@D)) := \$$(addprefix \$$(BUILD_INC)/, \$$(notdir \$$(wildcard \$$(addsuffix /include/*.h, \$$(PWD)/\$$(PREREQ_H_$(notdir $(@D)))))))" >>$@
 	@echo "endif" >>$@
 	@echo "" >>$@
 	@echo "ifndef LOCALPRECOMPILE_$(notdir $(@D))" >>$@
@@ -52,10 +52,11 @@ $(PRE_CBIN_MkFiles):
 	@echo "OBJ_$(notdir $(@D)) := \$$(DOBJ_$(notdir $(@D)):.d=.o)">>$@
 	@echo "BINNAME_$(notdir $(@D)) := \$$(TARGET_DIR_$(notdir $(@D)))/$(notdir $(@D))" >>$@
 	@echo "" >>$@
-	@echo "\$$(BUILD_BIN)/$(notdir $(@D)): \$$(BUILD_BIN) \$$(BINNAME_$(notdir $(@D)))" >>$@
+	@echo "$(notdir $(@D)): \$$(BUILD_BIN)/$(notdir $(@D))" >>$@
+	@echo "\$$(BUILD_BIN)/$(notdir $(@D)): \$$(BINNAME_$(notdir $(@D)))" >>$@
 	@echo -e "\t@cp \$$(TARGET_DIR_$(notdir $(@D)))/$(notdir $(@D)) \$$(BUILD_BIN)" >>$@
 	@echo "" >>$@
-	@echo "\$$(BINNAME_$(notdir $(@D))): \$$(BUILD_LIB) \$$(OBJ_$(notdir $(@D))) \$$(PREBUILDREQ_$(notdir $(@D))) \$$(LOCALPREBUILD_$(notdir $(@D)))" >>$@
+	@echo "\$$(BINNAME_$(notdir $(@D))): \$$(PREBUILDREQ_$(notdir $(@D))) \$$(OBJ_$(notdir $(@D))) \$$(LOCALPREBUILD_$(notdir $(@D)))" >>$@
 	@echo -e "\t@echo LD  \$$@ " >>$@
 	@echo -e "\t@ln -sf \$$(BUILD_LOG)/err-$(notdir $(@D))-\$$(TM).log \$$(SYSROOT_LOG)/err-$(notdir $(@D)).log" >>$@
 	@echo -e "\t@\$$(CC) \$$(LDFLAGS) \$$(LDFLAGS_$(notdir $(@D))) -L\$$(BUILD_LIB) -o \$$@ \$$(OBJ_$(notdir $(@D))) \$$(PREBUILDLIB_$(notdir $(@D))) \$$(LDLIBS_$(notdir $(@D))) 2>>\$$(BUILD_LOG)/err-$(notdir $(@D))-\$$(TM).log" >>$@
@@ -66,17 +67,15 @@ $(PRE_CBIN_MkFiles):
 	@echo "" >>$@
 	@echo "\$$(OBJ_$(notdir $(@D))): \$$(SRC_$(notdir $(@D))) \$$(PRECOMPILEREQ_$(notdir $(@D))) \$$(LOCALPRECOMPILE_$(notdir $(@D)))" >>$@
 	@echo -e "\t@\$$(eval CV := \$$(patsubst %.o,%.c,\$$(addprefix \$$(sort \$$(addsuffix /$(notdir $(@D))/src/,\$$(patsubst %/Build/$(notdir $(@D))/,%,\$$(dir \$$@)))),\$$(notdir \$$@))))" >>$@
-	@echo -e "\t@echo CC  \$$(CV)" >>$@
+	@echo -e "\t@echo CC \$$(CV)" >>$@
 	@echo -e "\t@ln -sf \$$(BUILD_LOG)/err-$(notdir $(@D))-\$$(TM).log \$$(SYSROOT_LOG)/err-$(notdir $(@D)).log" >>$@
-	@if [ "$(BUILDTYPE)" == "debug" ]; then \
+	@if [ "$(BUILDTYPE)" == "virtual_debug" ]; then \
+		echo -e "\t@\$$(CC) -D'VIRTUAL_DEBUG=1' -D'DEBUG' -D'REVISION=\"\$$(REVISION_$(notdir $(@D)))\"' \$$(CFLAGS) \$$(CFLAGS_$(notdir $(@D))) -O0 -g3 -I\$$(BUILD_INC) \$$(INC_$(notdir $(@D))) -c -o \$$@ \$$(CV) 2>>\$$(BUILD_LOG)/err-$(notdir $(@D))-\$$(TM).log" >>$@ ; \
+	elif [ "$(BUILDTYPE)" == "debug" ]; then \
 		echo -e "\t@\$$(CC) -D'DEBUG' -D'REVISION=\"\$$(REVISION_$(notdir $(@D)))\"' \$$(CFLAGS) \$$(CFLAGS_$(notdir $(@D))) -O0 -g3 -I\$$(BUILD_INC) \$$(INC_$(notdir $(@D))) -c -o \$$@ \$$(CV) 2>>\$$(BUILD_LOG)/err-$(notdir $(@D))-\$$(TM).log" >>$@ ; \
 	else \
 		echo -e "\t@\$$(CC) -D'REVISION=\"\$$(REVISION_$(notdir $(@D)))\"' \$$(CFLAGS) \$$(CFLAGS_$(notdir $(@D))) -O3 -feliminate-unused-debug-types -I\$$(BUILD_INC) \$$(INC_$(notdir $(@D))) -c -o \$$@ \$$(CV) 2>>\$$(BUILD_LOG)/err-$(notdir $(@D))-\$$(TM).log" >>$@ ; \
 	fi
-	@echo "" >>$@
-	@echo ".PHONY: \$$(BUILD_INC)/$(notdir $(@D)).h" >>$@
-	@echo "\$$(BUILD_INC)/$(notdir $(@D)).h: \$$(BUILD_INC) \$$(LOCALPREMAKEH_$(notdir $(@D)))" >>$@
-	@echo -e "\t@cp --no-preserve=timestamps -n -l -r \$$(TARGET_SRC_DIR_$(notdir $(@D)))/include/* \$$(BUILD_INC)" >>$@
 	@echo "" >>$@
 	@echo "" >>$@
 
